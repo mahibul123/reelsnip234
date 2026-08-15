@@ -165,3 +165,35 @@ function updateStatus(text, color) {
     el.style.background = color + '22';
     el.style.color = color;
 }
+async function fetchDatabase() {
+    updateStatus('Connecting...', '#f59e0b');
+    const url = `https://api.github.com/repos/${config.repo}/contents/db.json`;
+    
+    try {
+        const response = await fetch(url, {
+            headers: { 
+                'Authorization': `token ${config.token}`, 
+                'Accept': 'application/vnd.github.v3+json',
+                'Cache-Control': 'no-cache'
+            }
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message);
+        }
+
+        const data = await response.json();
+        state._sha = data.sha;
+        const decodedContent = JSON.parse(atob(data.content));
+        state = { ...state, ...decodedContent };
+        
+        updateStatus('Connected', '#10b981');
+        alert("Successfully connected to GitHub!");
+        renderDashboard();
+    } catch (error) {
+        updateStatus('Sync Error', '#ef4444');
+        alert("GitHub Error: " + error.message);
+        console.error("Full Error:", error);
+    }
+}
