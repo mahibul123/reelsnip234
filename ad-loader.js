@@ -1,7 +1,8 @@
 (async function() {
     // 1. YOUR SUPABASE SETTINGS (Copy from your dashboard)
-    const SUPA_URL = "YOUR_SUPABASE_URL";
-    const SUPA_KEY = "YOUR_SUPABASE_ANON_KEY";
+  const SUPA_URL = "https://your-project-id.supabase.co"; 
+    const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."; 
+
 
     async function loadAds() {
         const slots = document.querySelectorAll('[data-ad-slot]');
