@@ -1,32 +1,30 @@
 /**
- * AdPush CMS Logic
- * Built with Vanilla JavaScript
+ * AdPush CMS - Professional Logic
  */
 
-// 1. STATE & CONFIG
-let state = { ads: [], advertisers: [], analytics: { impressions: 0, clicks: 0 }, _sha: null };
+let state = { ads: [], analytics: { impressions: 0, clicks: 0 }, _sha: null };
 let config = JSON.parse(localStorage.getItem('ad_push_config')) || { token: '', repo: '' };
 
-// 2. INITIALIZATION
+// 1. Initialize
 document.addEventListener('DOMContentLoaded', () => {
-    initNavigation();
+    setupNavigation();
     if (config.token && config.repo) {
-        fetchDatabase();
+        syncDatabase();
     } else {
         switchView('settings');
-        updateStatus('No Connection', '#ef4444');
+        log("System: Please configure GitHub settings.");
     }
 });
 
-// 3. NAVIGATION ENGINE
-function initNavigation() {
-    document.querySelectorAll('.nav-item').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const view = btn.getAttribute('data-view');
+// 2. Navigation Logic
+function setupNavigation() {
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.onclick = () => {
+            const view = item.dataset.view;
             switchView(view);
-            document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-        });
+            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+            item.classList.add('active');
+        };
     });
 }
 
@@ -34,41 +32,48 @@ function switchView(viewId) {
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.getElementById(`view-${viewId}`).classList.add('active');
     if(viewId === 'dashboard') renderDashboard();
-    if(viewId === 'ads') renderAdsTable();
-    if(viewId === 'settings') renderSettings();
+    if(viewId === 'ads') renderAdsList();
+    if(viewId === 'integration') renderIntegration();
 }
 
-// 4. GITHUB API SYNC (Database)
-async function fetchDatabase() {
-    updateStatus('Connecting...', '#f59e0b');
-    const url = `https://api.github.com/repos/${config.repo}/contents/db.json`;
+// 3. GitHub API (Database) Logic
+async function syncDatabase() {
+    const statusEl = document.getElementById('connection-status');
+    statusEl.innerText = "Connecting...";
+    statusEl.style.color = "#f59e0b";
+
+    const url = `https://api.github.com/repos/${config.repo}/contents/db.json?t=${Date.now()}`;
+    
     try {
         const response = await fetch(url, {
             headers: { 'Authorization': `token ${config.token}`, 'Accept': 'application/vnd.github.v3+json' }
         });
+
+        if (!response.ok) throw new Error("Invalid Token or Repo");
+
         const data = await response.json();
         state._sha = data.sha;
-        const decodedContent = JSON.parse(atob(data.content));
-        state = { ...state, ...decodedContent };
-        
-        updateStatus('Connected', '#10b981');
+        state = { ...state, ...JSON.parse(atob(data.content)) };
+
+        statusEl.innerText = "Connected";
+        statusEl.style.color = "#10b981";
+        log("Database: Successfully synced with GitHub.");
         renderDashboard();
-    } catch (error) {
-        updateStatus('Sync Error', '#ef4444');
-        console.error(error);
+    } catch (err) {
+        statusEl.innerText = "Sync Failed";
+        statusEl.style.color = "#ef4444";
+        log("Error: " + err.message);
+        alert("GitHub Sync Failed. Check Token/Repo/Ad-blocker.");
     }
 }
 
-async function saveDatabase() {
-    updateStatus('Saving...', '#3b82f6');
+async function saveToGitHub() {
+    log("Database: Committing changes to GitHub...");
     const url = `https://api.github.com/repos/${config.repo}/contents/db.json`;
+    
     const body = {
-        message: "CMS Update: Ad Modification",
-        content: btoa(JSON.stringify({
-            ads: state.ads,
-            advertisers: state.advertisers,
-            analytics: state.analytics
-        })),
+        message: "CMS Update: " + new Date().toISOString(),
+        content: btoa(JSON.stringify({ ads: state.ads, analytics: state.analytics }, null, 2)),
         sha: state._sha
     };
 
@@ -79,121 +84,89 @@ async function saveDatabase() {
     });
 
     if (response.ok) {
-        const data = await response.json();
-        state._sha = data.content.sha;
-        updateStatus('Connected', '#10b981');
+        const result = await response.json();
+        state._sha = result.content.sha;
+        log("Database: Save successful.");
+    } else {
+        log("Error: Could not save to GitHub.");
     }
 }
 
-// 5. RENDERING DATA
+// 4. Rendering UI
 function renderDashboard() {
-    document.getElementById('stat-impressions').innerText = state.analytics.impressions.toLocaleString();
-    document.getElementById('stat-clicks').innerText = state.analytics.clicks.toLocaleString();
-    document.getElementById('stat-active').innerText = state.ads.filter(a => a.status === 'active').length;
+    document.getElementById('count-impressions').innerText = state.analytics.impressions.toLocaleString();
+    document.getElementById('count-clicks').innerText = state.analytics.clicks.toLocaleString();
+    document.getElementById('count-active').innerText = state.ads.length;
     
     const ctr = state.analytics.impressions > 0 
         ? ((state.analytics.clicks / state.analytics.impressions) * 100).toFixed(2) 
         : 0;
-    document.getElementById('stat-ctr').innerText = ctr + '%';
+    document.getElementById('count-ctr').innerText = ctr + "%";
 }
 
-function renderAdsTable() {
-    const tbody = document.getElementById('ads-table-body');
-    tbody.innerHTML = state.ads.map(ad => `
+function renderAdsList() {
+    const list = document.getElementById('ads-list');
+    list.innerHTML = state.ads.map(ad => `
         <tr>
             <td><strong>${ad.name}</strong></td>
-            <td>${ad.type.toUpperCase()}</td>
+            <td><span style="font-size:11px; padding:2px 6px; background:#e2e8f0; border-radius:4px;">${ad.type.toUpperCase()}</span></td>
             <td><code>${ad.slot}</code></td>
-            <td><span class="status-pill" style="background:#dcfce7; color:#166534">Active</span></td>
-            <td>${ad.start || 'N/A'} - ${ad.end || 'N/A'}</td>
+            <td><span style="color:#10b981; font-weight:600;">● Active</span></td>
+            <td>${ad.expiry || 'Permanent'}</td>
             <td>
-                <button class="btn" onclick="deleteAd('${ad.id}')">❌</button>
+                <button onclick="deleteAd('${ad.id}')" style="color:#ef4444; border:none; background:none; cursor:pointer;">Delete</button>
             </td>
         </tr>
     `).join('');
 }
 
-function renderSettings() {
-    document.getElementById('gh-token').value = config.token;
-    document.getElementById('gh-repo').value = config.repo;
-    const loaderPath = window.location.href.replace('index.html', '') + 'ad-loader.js';
-    document.getElementById('integration-code').innerText = `<script src="${loaderPath}"></script>`;
+function renderIntegration() {
+    const path = window.location.href.replace('index.html', '') + 'ad-loader.js';
+    document.getElementById('code-loader').innerText = `<script src="${path}"></script>`;
 }
 
-// 6. AD MANAGEMENT ACTIONS
+// 5. Ad Actions
 document.getElementById('ad-form').onsubmit = async (e) => {
     e.preventDefault();
     const newAd = {
         id: 'ad_' + Date.now(),
         name: document.getElementById('ad-name').value,
         type: document.getElementById('ad-type').value,
-        slot: document.getElementById('ad-slot').value,
-        url: document.getElementById('ad-url').value,
+        slot: document.getElementById('ad-slot').value.trim().toUpperCase(),
+        dest: document.getElementById('ad-dest').value,
         media: document.getElementById('ad-media').value,
-        start: document.getElementById('ad-start').value,
-        end: document.getElementById('ad-end').value,
-        status: 'active',
-        weight: 100
+        weight: parseInt(document.getElementById('ad-weight').value),
+        expiry: document.getElementById('ad-expiry').value
     };
+
     state.ads.push(newAd);
-    await saveDatabase();
-    closeModal('ad-modal');
-    renderAdsTable();
+    await saveToGitHub();
+    toggleModal('ad-modal', false);
+    renderAdsList();
 };
 
 async function deleteAd(id) {
-    if(confirm('Remove this ad push?')) {
-        state.ads = state.ads.filter(a => a.id !== id);
-        await saveDatabase();
-        renderAdsTable();
-    }
+    if(!confirm("Are you sure?")) return;
+    state.ads = state.ads.filter(a => a.id !== id);
+    await saveToGitHub();
+    renderAdsList();
 }
 
-function saveSettings() {
-    config.token = document.getElementById('gh-token').value;
-    config.repo = document.getElementById('gh-repo').value;
+// 6. Settings
+function saveConfig() {
+    config.token = document.getElementById('gh-token').value.trim();
+    config.repo = document.getElementById('gh-repo').value.trim();
     localStorage.setItem('ad_push_config', JSON.stringify(config));
-    fetchDatabase();
+    syncDatabase();
 }
 
-// 7. UTILS
-function openModal(id) { document.getElementById(id).style.display = 'flex'; }
-function closeModal(id) { document.getElementById(id).style.display = 'none'; }
-function updateStatus(text, color) {
-    const el = document.getElementById('connection-status');
-    el.innerText = text;
-    el.style.background = color + '22';
-    el.style.color = color;
+// 7. Utilities
+function toggleModal(id, show) {
+    document.getElementById(id).style.display = show ? 'flex' : 'none';
 }
-async function fetchDatabase() {
-    updateStatus('Connecting...', '#f59e0b');
-    const url = `https://api.github.com/repos/${config.repo}/contents/db.json`;
-    
-    try {
-        const response = await fetch(url, {
-            headers: { 
-                'Authorization': `token ${config.token}`, 
-                'Accept': 'application/vnd.github.v3+json',
-                'Cache-Control': 'no-cache'
-            }
-        });
 
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message);
-        }
-
-        const data = await response.json();
-        state._sha = data.sha;
-        const decodedContent = JSON.parse(atob(data.content));
-        state = { ...state, ...decodedContent };
-        
-        updateStatus('Connected', '#10b981');
-        alert("Successfully connected to GitHub!");
-        renderDashboard();
-    } catch (error) {
-        updateStatus('Sync Error', '#ef4444');
-        alert("GitHub Error: " + error.message);
-        console.error("Full Error:", error);
-    }
+function log(msg) {
+    const el = document.getElementById('system-logs');
+    el.innerHTML += `<div>[${new Date().toLocaleTimeString()}] ${msg}</div>`;
+    el.scrollTop = el.scrollHeight;
 }
