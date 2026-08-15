@@ -3,65 +3,64 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AdPush CMS | Pro Advertising Management</title>
+    <title>AdPush CMS | Professional Dashboard</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
 
-    <!-- Sidebar Navigation -->
+    <!-- Sidebar -->
     <aside class="sidebar">
-        <div class="sidebar-brand">AdPush <span>PRO</span></div>
-        <nav class="nav-menu">
+        <div class="sidebar-header">
+            <h2>AdPush <span>PRO</span></h2>
+        </div>
+        <nav class="nav-links">
             <div class="nav-item active" data-view="dashboard"><i>📊</i> Dashboard</div>
-            <div class="nav-item" data-view="ads"><i>🚀</i> Ad Push</div>
-            <div class="nav-item" data-view="advertisers"><i>👥</i> Advertisers</div>
-            <div class="nav-item" data-view="placements"><i>📍</i> Placements</div>
-            <div class="nav-item" data-view="analytics"><i>📈</i> Analytics</div>
+            <div class="nav-item" data-view="ads"><i>🚀</i> Ad Campaigns</div>
+            <div class="nav-item" data-view="integration"><i>🔗</i> Integration</div>
             <div class="nav-item" data-view="settings"><i>⚙️</i> Settings</div>
         </nav>
+        <div class="sidebar-footer">
+            <div id="connection-status" class="status-indicator">Disconnected</div>
+        </div>
     </aside>
 
-    <!-- Main Content Area -->
-    <main class="main-content">
-        
-        <!-- View: Dashboard -->
+    <!-- Main Content -->
+    <main class="content">
+        <!-- VIEW: Dashboard -->
         <section id="view-dashboard" class="view active">
-            <header class="view-header">
-                <h1>Dashboard</h1>
-                <div id="connection-status" class="status-pill">Checking Connection...</div>
+            <header class="content-header">
+                <h1>Performance Overview</h1>
             </header>
-            
             <div class="stats-grid">
                 <div class="stat-card">
-                    <h5>Total Impressions</h5>
-                    <h2 id="stat-impressions">0</h2>
+                    <p>Total Impressions</p>
+                    <h2 id="count-impressions">0</h2>
                 </div>
                 <div class="stat-card">
-                    <h5>Total Clicks</h5>
-                    <h2 id="stat-clicks">0</h2>
+                    <p>Total Clicks</p>
+                    <h2 id="count-clicks">0</h2>
                 </div>
                 <div class="stat-card">
-                    <h5>Active Ads</h5>
-                    <h2 id="stat-active">0</h2>
+                    <p>Click-Through Rate</p>
+                    <h2 id="count-ctr">0%</h2>
                 </div>
                 <div class="stat-card">
-                    <h5>CTR</h5>
-                    <h2 id="stat-ctr">0%</h2>
+                    <p>Active Ads</p>
+                    <h2 id="count-active">0</h2>
                 </div>
             </div>
-
             <div class="card">
-                <h3>Live Performance (Last 7 Days)</h3>
-                <div class="chart-container" id="chart"></div>
+                <h3>System Logs</h3>
+                <div id="system-logs" class="logs-area">Waiting for connection...</div>
             </div>
         </section>
 
-        <!-- View: Ad Management -->
+        <!-- VIEW: Ad Management -->
         <section id="view-ads" class="view">
-            <header class="view-header">
-                <h1>Ad Campaigns</h1>
-                <button class="btn btn-primary" onclick="openModal('ad-modal')">+ Create Ad</button>
+            <header class="content-header">
+                <h1>Ad Library</h1>
+                <button class="btn btn-primary" onclick="toggleModal('ad-modal', true)">+ Create New Ad</button>
             </header>
             <div class="table-container">
                 <table>
@@ -69,81 +68,97 @@
                         <tr>
                             <th>Ad Name</th>
                             <th>Type</th>
-                            <th>Slot</th>
+                            <th>Slot ID</th>
                             <th>Status</th>
-                            <th>Schedule</th>
+                            <th>Expiry</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
-                    <tbody id="ads-table-body"></tbody>
+                    <tbody id="ads-list"></tbody>
                 </table>
             </div>
         </section>
 
-        <!-- View: Settings / Integration -->
-        <section id="view-settings" class="view">
-            <header class="view-header"><h1>System Settings</h1></header>
-            <div class="settings-grid">
-                <div class="card">
-                    <h3>GitHub Database Sync</h3>
-                    <div class="form-group">
-                        <label>GitHub PAT (Token)</label>
-                        <input type="password" id="gh-token" placeholder="ghp_xxxxxxxxxxxx">
-                    </div>
-                    <div class="form-group">
-                        <label>Repository (username/repo)</label>
-                        <input type="text" id="gh-repo" placeholder="reelsnip/ad-database">
-                    </div>
-                    <button class="btn btn-primary" onclick="saveSettings()">Save & Connect</button>
-                </div>
-                <div class="card">
-                    <h3>Integration Code</h3>
-                    <p>Add this to your website <code>&lt;head&gt;</code>:</p>
-                    <code id="integration-code">Loading...</code>
-                </div>
+        <!-- VIEW: Integration -->
+        <section id="view-integration" class="view">
+            <header class="content-header">
+                <h1>Publisher Setup</h1>
+            </header>
+            <div class="card">
+                <h3>1. Universal Loader</h3>
+                <p>Paste this script in your website's <code>&lt;head&gt;</code> section:</p>
+                <code id="code-loader">Connect to GitHub to generate code...</code>
+                
+                <h3 style="margin-top: 20px;">2. Ad Slot Placeholder</h3>
+                <p>Paste this wherever you want an ad to appear:</p>
+                <code>&lt;div data-ad-slot="HEADER_TOP"&gt;&lt;/div&gt;</code>
             </div>
         </section>
 
+        <!-- VIEW: Settings -->
+        <section id="view-settings" class="view">
+            <header class="content-header">
+                <h1>Database Settings</h1>
+            </header>
+            <div class="card" style="max-width: 500px;">
+                <div class="form-group">
+                    <label>GitHub Personal Access Token (PAT)</label>
+                    <input type="password" id="gh-token" placeholder="ghp_xxxxxxxxxxxx">
+                </div>
+                <div class="form-group">
+                    <label>Repository Path (username/repo)</label>
+                    <input type="text" id="gh-repo" placeholder="mahibul123/reelsnip234">
+                </div>
+                <button class="btn btn-primary" onclick="saveConfig()">Save & Connect</button>
+                <p style="font-size: 12px; color: #666; margin-top: 10px;">Note: Ensure db.json exists in your repo.</p>
+            </div>
+        </section>
     </main>
 
-    <!-- Ad Creation Modal -->
-    <div class="modal-overlay" id="ad-modal">
+    <!-- Ad Modal -->
+    <div class="modal" id="ad-modal">
         <div class="modal-content">
-            <h2>New Advertisement</h2>
+            <h3>Push New Advertisement</h3>
             <form id="ad-form">
+                <div class="form-group">
+                    <label>Ad Name</label>
+                    <input type="text" id="ad-name" required>
+                </div>
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Ad Name</label>
-                        <input type="text" id="ad-name" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Ad Type</label>
+                        <label>Type</label>
                         <select id="ad-type">
                             <option value="image">Image Banner</option>
                             <option value="video">Video Ad</option>
                             <option value="html">Custom HTML</option>
                         </select>
                     </div>
+                    <div class="form-group">
+                        <label>Slot ID</label>
+                        <input type="text" id="ad-slot" placeholder="HEADER_TOP" required>
+                    </div>
                 </div>
                 <div class="form-group">
-                    <label>Placement Slot</label>
-                    <input type="text" id="ad-slot" placeholder="HEADER_TOP">
+                    <label>Destination URL (Click Link)</label>
+                    <input type="url" id="ad-dest" required>
                 </div>
                 <div class="form-group">
-                    <label>Destination URL</label>
-                    <input type="url" id="ad-url" required>
-                </div>
-                <div class="form-group">
-                    <label>Media Asset URL (Image/Video)</label>
+                    <label>Media Asset URL (Image/Video Link)</label>
                     <input type="text" id="ad-media" required>
                 </div>
                 <div class="form-row">
-                    <div class="form-group"><label>Start Date</label><input type="date" id="ad-start"></div>
-                    <div class="form-group"><label>End Date</label><input type="date" id="ad-end"></div>
+                    <div class="form-group">
+                        <label>Weight (1-100)</label>
+                        <input type="number" id="ad-weight" value="100">
+                    </div>
+                    <div class="form-group">
+                        <label>Expiry Date</label>
+                        <input type="date" id="ad-expiry">
+                    </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn" onclick="closeModal('ad-modal')">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Push Ad</button>
+                <div class="modal-actions">
+                    <button type="button" class="btn" onclick="toggleModal('ad-modal', false)">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Publish to Cloud</button>
                 </div>
             </form>
         </div>
