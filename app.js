@@ -1,22 +1,19 @@
 /**
- * AdPush CMS - Professional Logic
+ * AdPush CMS - Professional Logic (Updated for Debugging)
  */
 
 let state = { ads: [], analytics: { impressions: 0, clicks: 0 }, _sha: null };
 let config = JSON.parse(localStorage.getItem('ad_push_config')) || { token: '', repo: '' };
 
-// 1. Initialize
 document.addEventListener('DOMContentLoaded', () => {
     setupNavigation();
     if (config.token && config.repo) {
         syncDatabase();
     } else {
         switchView('settings');
-        log("System: Please configure GitHub settings.");
     }
 });
 
-// 2. Navigation Logic
 function setupNavigation() {
     document.querySelectorAll('.nav-item').forEach(item => {
         item.onclick = () => {
@@ -36,20 +33,34 @@ function switchView(viewId) {
     if(viewId === 'integration') renderIntegration();
 }
 
-// 3. GitHub API (Database) Logic
 async function syncDatabase() {
     const statusEl = document.getElementById('connection-status');
     statusEl.innerText = "Connecting...";
     statusEl.style.color = "#f59e0b";
 
-    const url = `https://api.github.com/repos/${config.repo}/contents/db.json?t=${Date.now()}`;
+    // CLEAN THE INPUTS (Remove spaces)
+    const cleanRepo = config.repo.trim();
+    const cleanToken = config.token.trim();
+
+    const url = `https://api.github.com/repos/${cleanRepo}/contents/db.json`;
     
     try {
         const response = await fetch(url, {
-            headers: { 'Authorization': `token ${config.token}`, 'Accept': 'application/vnd.github.v3+json' }
+            method: 'GET',
+            headers: { 
+                'Authorization': `token ${cleanToken}`, 
+                'Accept': 'application/vnd.github.v3+json',
+                'Cache-Control': 'no-cache'
+            }
         });
 
-        if (!response.ok) throw new Error("Invalid Token or Repo");
+        if (response.status === 404) {
+            throw new Error("File 'db.json' not found in this repo. Please create it first.");
+        } else if (response.status === 401) {
+            throw new Error("Invalid Token. Your ghp_... token is wrong or expired.");
+        } else if (!response.ok) {
+            throw new Error("GitHub Error: " + response.statusText);
+        }
 
         const data = await response.json();
         state._sha = data.sha;
@@ -57,50 +68,51 @@ async function syncDatabase() {
 
         statusEl.innerText = "Connected";
         statusEl.style.color = "#10b981";
-        log("Database: Successfully synced with GitHub.");
+        log("System: Successfully connected to GitHub.");
         renderDashboard();
     } catch (err) {
         statusEl.innerText = "Sync Failed";
         statusEl.style.color = "#ef4444";
         log("Error: " + err.message);
-        alert("GitHub Sync Failed. Check Token/Repo/Ad-blocker.");
+        
+        // Detailed Alert
+        alert("❌ CONNECTION ERROR:\n" + err.message + "\n\n1. Disable Ad-blockers\n2. Check your Token permissions\n3. Ensure db.json exists");
     }
 }
 
 async function saveToGitHub() {
-    log("Database: Committing changes to GitHub...");
-    const url = `https://api.github.com/repos/${config.repo}/contents/db.json`;
-    
+    const url = `https://api.github.com/repos/${config.repo.trim()}/contents/db.json`;
     const body = {
-        message: "CMS Update: " + new Date().toISOString(),
+        message: "Update Ads: " + new Date().toLocaleString(),
         content: btoa(JSON.stringify({ ads: state.ads, analytics: state.analytics }, null, 2)),
         sha: state._sha
     };
 
-    const response = await fetch(url, {
-        method: 'PUT',
-        headers: { 'Authorization': `token ${config.token}` },
-        body: JSON.stringify(body)
-    });
+    try {
+        const response = await fetch(url, {
+            method: 'PUT',
+            headers: { 'Authorization': `token ${config.token.trim()}` },
+            body: JSON.stringify(body)
+        });
 
-    if (response.ok) {
-        const result = await response.json();
-        state._sha = result.content.sha;
-        log("Database: Save successful.");
-    } else {
-        log("Error: Could not save to GitHub.");
+        if (response.ok) {
+            const result = await response.json();
+            state._sha = result.content.sha;
+            log("Database: Changes saved to GitHub.");
+        } else {
+            const errData = await response.json();
+            alert("Save Failed: " + errData.message);
+        }
+    } catch (e) {
+        alert("Error saving: " + e.message);
     }
 }
 
-// 4. Rendering UI
 function renderDashboard() {
     document.getElementById('count-impressions').innerText = state.analytics.impressions.toLocaleString();
     document.getElementById('count-clicks').innerText = state.analytics.clicks.toLocaleString();
     document.getElementById('count-active').innerText = state.ads.length;
-    
-    const ctr = state.analytics.impressions > 0 
-        ? ((state.analytics.clicks / state.analytics.impressions) * 100).toFixed(2) 
-        : 0;
+    const ctr = state.analytics.impressions > 0 ? ((state.analytics.clicks / state.analytics.impressions) * 100).toFixed(2) : 0;
     document.getElementById('count-ctr').innerText = ctr + "%";
 }
 
@@ -109,13 +121,11 @@ function renderAdsList() {
     list.innerHTML = state.ads.map(ad => `
         <tr>
             <td><strong>${ad.name}</strong></td>
-            <td><span style="font-size:11px; padding:2px 6px; background:#e2e8f0; border-radius:4px;">${ad.type.toUpperCase()}</span></td>
+            <td><span class="badge">${ad.type.toUpperCase()}</span></td>
             <td><code>${ad.slot}</code></td>
-            <td><span style="color:#10b981; font-weight:600;">● Active</span></td>
+            <td><span style="color:#10b981;">● Active</span></td>
             <td>${ad.expiry || 'Permanent'}</td>
-            <td>
-                <button onclick="deleteAd('${ad.id}')" style="color:#ef4444; border:none; background:none; cursor:pointer;">Delete</button>
-            </td>
+            <td><button onclick="deleteAd('${ad.id}')" class="btn-del">Delete</button></td>
         </tr>
     `).join('');
 }
@@ -125,7 +135,6 @@ function renderIntegration() {
     document.getElementById('code-loader').innerText = `<script src="${path}"></script>`;
 }
 
-// 5. Ad Actions
 document.getElementById('ad-form').onsubmit = async (e) => {
     e.preventDefault();
     const newAd = {
@@ -138,7 +147,6 @@ document.getElementById('ad-form').onsubmit = async (e) => {
         weight: parseInt(document.getElementById('ad-weight').value),
         expiry: document.getElementById('ad-expiry').value
     };
-
     state.ads.push(newAd);
     await saveToGitHub();
     toggleModal('ad-modal', false);
@@ -152,21 +160,20 @@ async function deleteAd(id) {
     renderAdsList();
 }
 
-// 6. Settings
 function saveConfig() {
-    config.token = document.getElementById('gh-token').value.trim();
-    config.repo = document.getElementById('gh-repo').value.trim();
+    const t = document.getElementById('gh-token').value.trim();
+    const r = document.getElementById('gh-repo').value.trim();
+    if(!t || !r) return alert("Fill both fields!");
+    config = { token: t, repo: r };
     localStorage.setItem('ad_push_config', JSON.stringify(config));
     syncDatabase();
 }
 
-// 7. Utilities
-function toggleModal(id, show) {
-    document.getElementById(id).style.display = show ? 'flex' : 'none';
-}
-
+function toggleModal(id, show) { document.getElementById(id).style.display = show ? 'flex' : 'none'; }
 function log(msg) {
     const el = document.getElementById('system-logs');
-    el.innerHTML += `<div>[${new Date().toLocaleTimeString()}] ${msg}</div>`;
-    el.scrollTop = el.scrollHeight;
+    if(el) {
+        el.innerHTML += `<div>[${new Date().toLocaleTimeString()}] ${msg}</div>`;
+        el.scrollTop = el.scrollHeight;
+    }
 }
